@@ -2,76 +2,88 @@
 
 use anchor_lang::prelude::*;
 
-use instructions::*;
-
-pub mod errors;
-pub mod guards;
 pub mod instructions;
 pub mod state;
+pub mod svg;
 pub mod utils;
 
-declare_id!("7UpRzafcdY2Wbc37jhoioy3oha3qbAChC6yB4EVqRiLu");
+pub use instructions::*;
+pub use state::*;
+pub use svg::*;
+pub use utils::*;
+pub use utils::errors::StrawberryError;
+
+declare_id!("YOUR_PROGRAM_ID_HERE");
 
 #[program]
-pub mod candy_guard {
+pub mod strawberry_nft {
     use super::*;
 
-    /// Create a new candy guard account.
-    pub fn initialize(ctx: Context<Initialize>, data: Vec<u8>) -> Result<()> {
-        instructions::initialize(ctx, data)
-    }
-
-    /// Mint an NFT from a candy machine wrapped in the candy guard.
-    pub fn mint<'info>(
-        ctx: Context<'_, '_, '_, 'info, Mint<'info>>,
-        mint_args: Vec<u8>,
-        label: Option<String>,
+    // Initialize the program state
+    pub fn initialize(
+        ctx: Context<Initialize>,
+        max_supply: u32,
+        mint_price: u64,
+        whitelist_merkle_root: [u8; 32],
+        whitelist_mint_limit: u8,
+        creator_fee_bps: u16,
     ) -> Result<()> {
-        instructions::mint(ctx, mint_args, label)
+        instructions::initialize(ctx, max_supply, mint_price, whitelist_merkle_root, whitelist_mint_limit, creator_fee_bps)
     }
-
-    /// Mint an NFT from a candy machine wrapped in the candy guard.
-    pub fn mint_v2<'info>(
-        ctx: Context<'_, '_, '_, 'info, MintV2<'info>>,
-        mint_args: Vec<u8>,
-        label: Option<String>,
+    
+    // Initialize candy guard
+    pub fn initialize_candy_guard(
+        ctx: Context<InitializeCandyGuard>,
+        whitelist_config: Option<WhitelistGuardConfig>,
+        mint_limit_config: Option<MintLimitGuardConfig>,
+        start_date_config: Option<StartDateGuardConfig>,
+        sol_payment_config: Option<SolPaymentGuardConfig>,
     ) -> Result<()> {
-        instructions::mint_v2(ctx, mint_args, label)
+        instructions::candy_guard::initialize_candy_guard(
+            ctx, 
+            whitelist_config, 
+            mint_limit_config, 
+            start_date_config, 
+            sol_payment_config
+        )
     }
 
-    /// Route the transaction to a guard instruction.
-    pub fn route<'info>(
-        ctx: Context<'_, '_, '_, 'info, Route<'info>>,
-        args: RouteArgs,
-        label: Option<String>,
+    // Mint a single NFT with candy guard
+    pub fn mint_with_guard(
+        ctx: Context<MintWithGuard>,
+        personality_data: PersonalityData,
+        whitelist_merkle_proof: Option<Vec<[u8; 32]>>,
     ) -> Result<()> {
-        instructions::route(ctx, args, label)
+        instructions::mint_with_guard(ctx, personality_data, whitelist_merkle_proof)
     }
 
-    /// Set a new authority of the candy guard.
-    pub fn set_authority(ctx: Context<SetAuthority>, new_authority: Pubkey) -> Result<()> {
-        instructions::set_authority(ctx, new_authority)
+    // Batch mint multiple NFTs with candy guard
+    pub fn batch_mint_with_guard(
+        ctx: Context<BatchMintWithGuard>,
+        personality_data_array: Vec<PersonalityData>,
+        whitelist_merkle_proof: Option<Vec<[u8; 32]>>,
+    ) -> Result<()> {
+        instructions::batch_mint_with_guard(ctx, personality_data_array, whitelist_merkle_proof)
     }
 
-    /// Remove a candy guard from a candy machine, setting the authority to the
-    /// candy guard authority.
-    pub fn unwrap(ctx: Context<Unwrap>) -> Result<()> {
-        instructions::unwrap(ctx)
+    // Admin functions
+    pub fn update_mint_price(ctx: Context<AdminOnly>, new_price: u64) -> Result<()> {
+        instructions::admin::update_mint_price(ctx, new_price)
     }
 
-    /// Update the candy guard configuration.
-    pub fn update(ctx: Context<Update>, data: Vec<u8>) -> Result<()> {
-        instructions::update(ctx, data)
+    pub fn toggle_active(ctx: Context<AdminOnly>) -> Result<()> {
+        instructions::admin::toggle_active(ctx)
     }
 
-    /// Withdraw the rent SOL from the candy guard account.
-    pub fn withdraw(ctx: Context<Withdraw>) -> Result<()> {
-        instructions::withdraw(ctx)
+    pub fn set_phase(ctx: Context<AdminOnly>, phase: u8) -> Result<()> {
+        instructions::admin::set_phase(ctx, phase)
     }
 
-    /// Add a candy guard to a candy machine. After the guard is added, mint
-    /// is only allowed through the candy guard.
-    pub fn wrap(ctx: Context<Wrap>) -> Result<()> {
-        instructions::wrap(ctx)
+    pub fn update_whitelist(ctx: Context<AdminOnly>, new_merkle_root: [u8; 32]) -> Result<()> {
+        instructions::admin::update_whitelist(ctx, new_merkle_root)
+    }
+
+    pub fn update_creator(ctx: Context<AdminOnly>, new_creator: Pubkey) -> Result<()> {
+        instructions::admin::update_creator(ctx, new_creator)
     }
 }
